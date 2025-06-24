@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Category;
+use App\Models\Todo;   
+use App\Models\User;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,5 +21,13 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Create categories first
+        Category::factory()->work()->create();
+        Category::factory()->personal()->create();
+        Category::factory(5)->create();
+        
+        // Create todos
+        Todo::factory(20)->create();
     }
 }
