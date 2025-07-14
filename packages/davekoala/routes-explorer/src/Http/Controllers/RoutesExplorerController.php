@@ -32,4 +32,20 @@ class RoutesExplorerController extends Controller
 
         return view('routes-explorer::routes-explorer', compact('routes'));
     }
+
+    public function getRoute(Request $request)
+    {
+         // Get the parameters from the request
+        $verb = $request->get('verb');
+        $route = $request->get('route');
+        
+        // Return a JSON response
+        return response()->json([
+            'message' => 'Route test initiated',
+            'verb' => $verb,
+            'route' => $route,
+            'timestamp' => now()->toDateTimeString(),
+            'status' => 'success'
+        ]);
+    }
 }
