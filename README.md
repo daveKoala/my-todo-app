@@ -32,3 +32,9 @@ The first time you star the project there will be no databases or seeded tables.
 ```:bash
 ./vendor/bin/sail artisan migrate:status
 ```
+
+## Use the interactive shell (the terminal within the container)
+
+```:bash
+./vendor/bin/sail shell
+```
