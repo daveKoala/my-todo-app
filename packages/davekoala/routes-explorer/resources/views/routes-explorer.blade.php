@@ -168,7 +168,7 @@
                                     <td>
                                         <button onclick="testRoute('{{ $route['method'] }}', '{{ $route['uri'] }}')" 
                                                 class="test-btn">
-                                            Test Route
+                                            Explore
                                         </button>
                                     </td>
                                 </tr>
