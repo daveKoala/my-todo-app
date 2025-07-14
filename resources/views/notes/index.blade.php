@@ -2,20 +2,11 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- Debug Info (remove after testing) -->
-    <div style="background: yellow; padding: 10px; margin-bottom: 20px;">
-        <strong>Debug Info:</strong><br>
-        Total notes: {{ $notes->count() }}<br>
-        Pinned notes: {{ $pinnedNotes->count() }}<br>
-        @if($notes->count() > 0)
-            First note title: {{ $notes->first()->title ?? 'No title' }}
-        @endif
-    </div>
-
     <!-- New Note Form -->
     <div class="new-note-form" id="newNoteForm">
         <form action="{{ route('notes.store') }}" method="POST">
             @csrf
+            <input type="hidden" name="color" value="#ffffff" id="colorInput">
             <div class="note-form-content">
                 <input type="text" name="title" placeholder="Take a note..." class="note-input note-title-input"
                     style="width: 100%; border: none; outline: none; padding: 16px; font-size: 16px; font-weight: 500;"
@@ -36,12 +27,45 @@
                                 </svg>
                             </button>
 
-                            <button type="button" class="toolbar-btn" title="Change color">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
-                                </svg>
-                            </button>
+                            <div class="color-picker" style="position: relative; display: inline-block;">
+                                <button type="button" class="toolbar-btn" title="Change color"
+                                    onclick="toggleColorPicker(event)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
+                                    </svg>
+                                </button>
+
+                                <div id="colorPicker" class="color-picker-dropdown"
+                                    style="display: none; position: absolute; bottom: 100%; left: 0; background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
+                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                                        <button type="button" class="color-btn" onclick="setColor('#ffffff')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; border: 2px solid #e0e0e0; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#f28b82')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #f28b82; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#fbbc04')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #fbbc04; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#fff475')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #fff475; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#ccff90')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #ccff90; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#a7ffeb')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #a7ffeb; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#cbf0f8')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #cbf0f8; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#aecbfa')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #aecbfa; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#d7aefb')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #d7aefb; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#fdcfe8')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #fdcfe8; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#e6c9a8')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #e6c9a8; border: none; cursor: pointer;"></button>
+                                        <button type="button" class="color-btn" onclick="setColor('#e8eaed')"
+                                            style="width: 32px; height: 32px; border-radius: 50%; background: #e8eaed; border: none; cursor: pointer;"></button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-buttons">
@@ -223,6 +247,28 @@
     </div>
 
     <script>
+        // Color picker functionality for new note form
+        function toggleColorPicker(event) {
+            event.stopPropagation();
+            const picker = document.getElementById('colorPicker');
+            picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function setColor(color) {
+            document.getElementById('colorInput').value = color;
+            // Apply color to the entire new note form container
+            document.getElementById('newNoteForm').style.backgroundColor = color;
+            document.getElementById('colorPicker').style.display = 'none';
+        }
+
+        // Close color picker when clicking outside
+        document.addEventListener('click', function (event) {
+            const colorPicker = document.querySelector('.color-picker');
+            if (colorPicker && !colorPicker.contains(event.target)) {
+                document.getElementById('colorPicker').style.display = 'none';
+            }
+        });
+
         function expandForm() {
             document.getElementById('expandedForm').style.display = 'block';
             document.getElementById('newNoteForm').classList.add('form-expanded');
@@ -233,6 +279,8 @@
             document.getElementById('newNoteForm').classList.remove('form-expanded');
             document.querySelector('.note-title-input').value = '';
             document.querySelector('.note-content-input').value = '';
+            document.getElementById('newNoteForm').style.backgroundColor = '#ffffff';
+            document.getElementById('colorInput').value = '#ffffff';
         }
 
         function openNote(noteId) {

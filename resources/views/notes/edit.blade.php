@@ -178,18 +178,34 @@
                 const form = document.getElementById('noteForm');
                 const formData = new FormData(form);
 
+                // Ensure the _method field is included for PUT request
+                formData.append('_method', 'PUT');
+
                 fetch(form.action, {
-                    method: 'POST',
+                    method: 'POST', // Laravel expects POST with _method field
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json', // Important: Tell server we expect JSON
                     },
                     body: formData
                 })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        document.getElementById('saveStatus').textContent = 'All changes saved';
-                        hasUnsavedChanges = false;
+                        if (data.deleted) {
+                            // Note was deleted because it was empty
+                            document.getElementById('saveStatus').textContent = 'Note deleted (was empty)';
+                            // Immediately redirect to notes index
+                            window.location.href = '/notes';
+                        } else {
+                            document.getElementById('saveStatus').textContent = 'All changes saved';
+                            hasUnsavedChanges = false;
+                        }
                     })
                     .catch(error => {
                         document.getElementById('saveStatus').textContent = 'Error saving';
@@ -260,6 +276,7 @@
 
         // Delete functionality
         function deleteNote() {
+            console.log("Deleting note...");
             if (confirm('Delete this note permanently?')) {
                 document.getElementById('deleteForm').submit();
             }

@@ -86,7 +86,7 @@ class NoteController extends Controller
         ]);
 
         return redirect()->route('notes.index')
-            ->with('success', 'Note created successfully!');
+            ->with('success', "Note '{$note->title}' created successfully!");
     }
 
     /**
@@ -94,7 +94,12 @@ class NoteController extends Controller
      */
     public function show(Note $note): View
     {
-        $this->authorize('view', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         return view('notes.show', compact('note'));
     }
@@ -104,7 +109,12 @@ class NoteController extends Controller
      */
     public function edit(Note $note): View
     {
-        $this->authorize('update', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         return view('notes.edit', compact('note'));
     }
@@ -112,9 +122,14 @@ class NoteController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Note $note): RedirectResponse
+    public function update(Request $request, Note $note)
     {
-        $this->authorize('update', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
@@ -146,11 +161,16 @@ class NoteController extends Controller
      */
     public function destroy(Note $note): RedirectResponse
     {
-        $this->authorize('delete', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->delete();
 
-        return redirect()->back()
+        return redirect()->route('notes.index')
             ->with('success', 'Note moved to trash!');
     }
 
@@ -159,7 +179,12 @@ class NoteController extends Controller
      */
     public function pin(Note $note): RedirectResponse
     {
-        $this->authorize('update', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->togglePin();
 
@@ -174,7 +199,12 @@ class NoteController extends Controller
      */
     public function archive(Note $note): RedirectResponse
     {
-        $this->authorize('update', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->archive();
 
@@ -187,7 +217,12 @@ class NoteController extends Controller
      */
     public function unarchive(Note $note): RedirectResponse
     {
-        $this->authorize('update', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->unarchive();
 
@@ -201,6 +236,7 @@ class NoteController extends Controller
     public function archived(): View
     {
         $user = $this->getUser();
+
         $notes = $user->notes()
             ->archived()
             ->defaultOrder()
@@ -215,6 +251,7 @@ class NoteController extends Controller
     public function trash(): View
     {
         $user = $this->getUser();
+
         $notes = $user->notes()
             ->onlyTrashed()
             ->orderBy('deleted_at', 'desc')
@@ -233,7 +270,12 @@ class NoteController extends Controller
      */
     public function restore(Note $note): RedirectResponse
     {
-        $this->authorize('restore', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->restore();
 
@@ -246,7 +288,12 @@ class NoteController extends Controller
      */
     public function forceDelete(Note $note): RedirectResponse
     {
-        $this->authorize('forceDelete', $note);
+        $user = $this->getUser();
+
+        // Then do your own authorization check
+        if ($note->user_id !== $user->id) {
+            abort(403);
+        }
 
         $note->forceDelete();
 

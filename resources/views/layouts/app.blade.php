@@ -112,6 +112,7 @@
         .main-content {
             margin-left: 280px;
             padding: 32px;
+            margin-top: 4.5em;
         }
 
         .header {
