@@ -6,7 +6,7 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1800px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -87,7 +87,7 @@
         .row {
             display: flex;
             flex-direction: row;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;  /* Changed from wrap to nowrap */
             width: 100%;
             height: 100vh;
         }
@@ -95,8 +95,9 @@
         .column {
             display: flex;
             flex-direction: column;
-            flex-basis: 100%;
+            flex-basis: 50%;  /* Changed from 100% to 50% */
             flex: 1;
+            min-width: 400px;  /* Add minimum width */
         }
 
         .left-column {
@@ -114,7 +115,8 @@
             margin: 0.5em;
         }
 
-        .right-column h3 {
+
+         .right-column h3 {
             margin-top: 0;
             color: #333;
         }
@@ -126,5 +128,31 @@
             border-radius: 4px;
             overflow-x: auto;
             font-family: 'Courier New', monospace;
+        }
+        
+        #network-container {
+            width: 100%;
+            /* height: 400px; */
+            height: 90vh;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .view-toggle {
+            margin-bottom: 10px;
+        }
+        
+        .view-toggle button {
+            margin-right: 10px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        .view-toggle button.active {
+            background: #007bff;
+            color: white;
         }
     </style>
