@@ -10,8 +10,10 @@ use ReflectionClass;
 /**
  * Enhanced Class Analysis Engine
  * 
- * Now includes method body analysis to detect additional dependencies
+ * Also includes method body analysis to detect additional dependencies
  * like Auth::user(), static calls, and class instantiations.
+ * 
+ * The 'Command' stuff is legacy from when I first built this as an Artisan tool.
  */
 class ClassAnalysisEngine
 {
@@ -72,6 +74,7 @@ class ClassAnalysisEngine
         }
         
         $method = $reflection->getMethod($methodName);
+        // PHP has some odd methods, but then found of JS has  <>.repeat(3)
         $indent = str_repeat('  ', $depth);
         
         $command->line("{$indent}🔧 Method: {$methodName}()");
@@ -79,12 +82,12 @@ class ClassAnalysisEngine
         // Original parameter-based dependency analysis
         $this->exploreMethodDependencies($method, $className, $depth + 1, "Method: {$methodName}", $command);
         
-        // NEW: Method body analysis for additional dependencies
+        // Method body analysis for additional dependencies
         $this->exploreMethodBodyDependencies($reflection, $methodName, $className, $depth + 1, $command);
     }
     
     /**
-     * NEW: Analyze method body for additional dependencies
+     * Analyze method body for additional dependencies
      */
     private function exploreMethodBodyDependencies(ReflectionClass $reflection, string $methodName, string $className, int $depth, Command $command): void
     {
@@ -136,88 +139,150 @@ class ClassAnalysisEngine
      * Analyze source code for dependency patterns
      */
     private function analyzeSourceForDependencies(string $source): array
-    {
-        $dependencies = [];
-        
-        // Pattern 1: Auth::user() calls
-        if (preg_match_all('/Auth::user\(\)/', $source, $matches)) {
+{
+    $dependencies = [];
+    
+    // Pattern 1: Auth::user() calls - get actual configured user model
+    if (preg_match_all('/Auth::user\(\)/', $source, $matches)) {
+        $userModel = $this->getAuthUserModel();
+        if ($userModel) {
             $dependencies[] = [
-                'class' => 'App\\Models\\User',
+                'class' => $userModel,
                 'pattern' => 'Auth::user()',
                 'usage' => 'auth_user'
             ];
         }
-        
-        // Pattern 2: User model static calls like User::first(), User::create()
-        if (preg_match_all('/\\\\?App\\\\Models\\\\(\w+)::/', $source, $matches)) {
-            foreach ($matches[1] as $model) {
+    }
+    
+    // Pattern 2: Auth::guard('name')->user() calls - check specific guard
+    if (preg_match_all('/Auth::guard\([\'"]([^\'"]+)[\'"]\)->user\(\)/', $source, $matches)) {
+        foreach ($matches[1] as $guardName) {
+            $userModel = $this->getAuthUserModel($guardName);
+            if ($userModel) {
                 $dependencies[] = [
-                    'class' => "App\\Models\\{$model}",
+                    'class' => $userModel,
+                    'pattern' => "Auth::guard('{$guardName}')->user()",
+                    'usage' => 'auth_guard_user'
+                ];
+            }
+        }
+    }
+    
+    // Pattern 3: Explicit model static calls like User::first(), Customer::create()
+    if (preg_match_all('/\\\\?App\\\\Models\\\\(\w+)::/', $source, $matches)) {
+        foreach ($matches[1] as $model) {
+            $fullClass = "App\\Models\\{$model}";
+            if (class_exists($fullClass)) {
+                $dependencies[] = [
+                    'class' => $fullClass,
                     'pattern' => "App\\Models\\{$model}::",
                     'usage' => 'static_call'
                 ];
             }
         }
-        
-        // Pattern 3: Simple model references like User::first() (without full namespace)
-        if (preg_match_all('/(\w+)::(?:first|create|find|where|all)\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleModel) {
-                // Only consider if it looks like a model (starts with capital)
-                if (ctype_upper($possibleModel[0]) && $possibleModel !== 'Auth') {
-                    $fullClass = "App\\Models\\{$possibleModel}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleModel}::",
-                            'usage' => 'static_call'
-                        ];
-                    }
-                }
+    }
+    
+    // Pattern 4: Simple model references - but verify they exist
+    if (preg_match_all('/(\w+)::(?:first|create|find|where|all|factory)\(/', $source, $matches)) {
+        foreach ($matches[1] as $possibleModel) {
+            // Skip known non-models
+            if (in_array($possibleModel, ['Auth', 'DB', 'Cache', 'Log', 'Mail', 'Queue'])) {
+                continue;
             }
-        }
-        
-        // Pattern 4: new ClassName() instantiations
-        if (preg_match_all('/new\s+\\\\?(\w+(?:\\\\[\w]+)*)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $class) {
-                $fullClass = str_starts_with($class, 'App\\') ? $class : "App\\{$class}";
+            
+            // Only consider if it looks like a model (starts with capital)
+            if (ctype_upper($possibleModel[0])) {
+                $fullClass = "App\\Models\\{$possibleModel}";
                 if (class_exists($fullClass)) {
                     $dependencies[] = [
                         'class' => $fullClass,
-                        'pattern' => "new {$class}()",
-                        'usage' => 'instantiation'
+                        'pattern' => "{$possibleModel}::",
+                        'usage' => 'static_call'
                     ];
                 }
             }
         }
-        
-        // Pattern 5: $this->method() calls that might reference models
-        // This is more complex but could detect calls to getUser() etc.
-        if (preg_match_all('/\$this->(\w+)\(\)/', $source, $matches)) {
-            // For now, just detect getUser() specifically since we know about it
-            foreach ($matches[1] as $methodCall) {
-                if ($methodCall === 'getUser') {
+    }
+    
+    // Pattern 5: new ClassName() instantiations
+    if (preg_match_all('/new\s+\\\\?(\w+(?:\\\\[\w]+)*)\s*\(/', $source, $matches)) {
+        foreach ($matches[1] as $class) {
+            $fullClass = str_starts_with($class, 'App\\') ? $class : "App\\{$class}";
+            if (class_exists($fullClass)) {
+                $dependencies[] = [
+                    'class' => $fullClass,
+                    'pattern' => "new {$class}()",
+                    'usage' => 'instantiation'
+                ];
+            }
+        }
+    }
+    
+    // Pattern 6: $this->method() calls that might reference models
+    if (preg_match_all('/\$this->(\w+)\(\)/', $source, $matches)) {
+        foreach ($matches[1] as $methodCall) {
+            // For getUser() type methods, try to determine what they return
+            if (str_contains(strtolower($methodCall), 'user')) {
+                $userModel = $this->getAuthUserModel();
+                if ($userModel) {
                     $dependencies[] = [
-                        'class' => 'App\\Models\\User',
-                        'pattern' => '$this->getUser()',
+                        'class' => $userModel,
+                        'pattern' => "\$this->{$methodCall}()",
                         'usage' => 'helper_method'
                     ];
                 }
             }
         }
-        
-        // Remove duplicates
-        $unique = [];
-        foreach ($dependencies as $dep) {
-            $key = $dep['class'] . '|' . $dep['pattern'];
-            if (!isset($unique[$key])) {
-                $unique[$key] = $dep;
-            }
-        }
-        
-        return array_values($unique);
     }
     
-    // ... rest of the original methods remain the same ...
+    // Remove duplicates
+    $unique = [];
+    foreach ($dependencies as $dep) {
+        $key = $dep['class'] . '|' . $dep['pattern'];
+        if (!isset($unique[$key])) {
+            $unique[$key] = $dep;
+        }
+    }
+    
+    return array_values($unique);
+}
+
+/**
+ * Get the actual configured user model for auth
+ */
+private function getAuthUserModel(string $guard = null): ?string
+{
+    try {
+        // Get the guard configuration
+        $guardName = $guard ?: config('auth.defaults.guard', 'web');
+        $guardConfig = config("auth.guards.{$guardName}");
+        
+        if (!$guardConfig || !isset($guardConfig['provider'])) {
+            return null;
+        }
+        
+        // Get the provider configuration
+        $providerName = $guardConfig['provider'];
+        $providerConfig = config("auth.providers.{$providerName}");
+        
+        if (!$providerConfig || !isset($providerConfig['model'])) {
+            return null;
+        }
+        
+        $userModel = $providerConfig['model'];
+        
+        // Verify the model class actually exists
+        if (class_exists($userModel)) {
+            return $userModel;
+        }
+        
+        return null;
+        
+    } catch (\Exception $e) {
+        // If anything goes wrong, don't make assumptions
+        return null;
+    }
+}
     
     private function exploreClass(string $className, int $depth, string $context, Command $command): void
     {
