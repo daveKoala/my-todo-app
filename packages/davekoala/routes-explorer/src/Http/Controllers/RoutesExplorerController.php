@@ -2,12 +2,12 @@
 
 namespace DaveKoala\RoutesExplorer\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Route;
 use DaveKoala\RoutesExplorer\Explorer\ClassAnalysisEngine;
 use DaveKoala\RoutesExplorer\Explorer\StringHelpers;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Routing\Controller;
 use Illuminate\Console\Command;
+use Illuminate\Http\Request;
 
 class RoutesExplorerController extends Controller
 {

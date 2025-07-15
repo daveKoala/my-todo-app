@@ -2,10 +2,10 @@
 
 namespace DaveKoala\RoutesExplorer\Explorer;
 
-use Illuminate\Routing\Route;
 use Illuminate\Console\Command;
-use ReflectionClass;
+use Illuminate\Routing\Route;
 use ReflectionMethod;
+use ReflectionClass;
 
 /**
  * Enhanced Class Analysis Engine
