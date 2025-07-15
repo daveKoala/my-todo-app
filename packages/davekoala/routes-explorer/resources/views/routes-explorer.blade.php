@@ -92,109 +92,140 @@
         }
         
         function displayNetworkGraph(relationships) {
-            const contentArea = document.getElementById('content-area');
-            contentArea.innerHTML = '<div id="network-container"></div>';
-            
-            // Convert relationships to Vis.js format
-            const nodes = [];
-            const edges = [];
-            
-            // Create nodes
-            Object.values(relationships).forEach(rel => {
-                nodes.push({
-                    id: rel.name,
-                    label: rel.name.split('\\').pop(), // Short name
-                    title: rel.name, // Full name on hover
-                    color: getColorForType(rel.type),
-                    shape: getShapeForType(rel.type),
-                    font: { size: 12 }
-                });
-            });
-            
-            // Create edges
-            Object.values(relationships).forEach(rel => {
-                // Inheritance edges
-                if (rel.extends) {
-                    edges.push({
-                        from: rel.name,
-                        to: rel.extends,
-                        label: 'extends',
-                        color: { color: '#ff9500' },
-                        arrows: 'to'
-                    });
-                }
-                
-                // Dependency edges
-                if (rel.dependencies) {
-                    rel.dependencies.forEach(dep => {
-                        edges.push({
-                            from: rel.name,
-                            to: dep.class,
-                            label: 'uses',
-                            color: { color: '#007bff' },
-                            arrows: 'to',
-                            dashes: true
+                const contentArea = document.getElementById('content-area');
+                contentArea.innerHTML = '<div id="network-container"></div>';
+
+                // Convert relationships to Vis.js format
+                const nodes = [];
+                const edges = [];
+                const nodeIds = new Set();
+
+                // Create nodes for all classes in relationships
+                Object.values(relationships).forEach(rel => {
+                    if (!nodeIds.has(rel.name)) {
+                        nodes.push({
+                            id: rel.name,
+                            label: rel.name.split('\\').pop(), // Short name
+                            title: rel.name, // Full name on hover
+                            color: getColorForType(rel.type),
+                            shape: getShapeForType(rel.type),
+                            font: { size: 12 }
                         });
-                    });
-                }
-                
-                // Interface edges
-                if (rel.implements) {
-                    rel.implements.forEach(iface => {
-                        edges.push({
-                            from: rel.name,
-                            to: iface,
-                            label: 'implements',
-                            color: { color: '#28a745' },
-                            arrows: 'to',
-                            dashes: [5, 5]
-                        });
-                    });
-                }
-                
-                // Trait edges
-                if (rel.traits) {
-                    rel.traits.forEach(trait => {
-                        edges.push({
-                            from: rel.name,
-                            to: trait,
-                            label: 'uses',
-                            color: { color: '#6c757d' },
-                            arrows: 'to',
-                            dashes: [2, 2]
-                        });
-                    });
-                }
-            });
-            
-            // Create the network
-            const container = document.getElementById('network-container');
-            const data = { nodes: nodes, edges: edges };
-            const options = {
-                physics: {
-                    enabled: true,
-                    stabilization: { iterations: 100 }
-                },
-                layout: {
-                    hierarchical: {
-                        enabled: true,
-                        direction: 'UD',
-                        sortMethod: 'directed'
+                        nodeIds.add(rel.name);
                     }
-                },
-                nodes: {
-                    borderWidth: 2,
-                    size: 20,
-                    font: { size: 12, face: 'Arial' }
-                },
-                edges: {
-                    width: 2,
-                    font: { size: 10 }
-                }
-            };
-            
-            new vis.Network(container, data, options);
-        }
+
+                    // Add nodes for parent classes
+                    if (rel.extends && !nodeIds.has(rel.extends)) {
+                        nodes.push({
+                            id: rel.extends,
+                            label: rel.extends.split('\\').pop(),
+                            title: rel.extends,
+                            color: getColorForType('Class'), // Default color for parent
+                            shape: 'box',
+                            font: { size: 11 }
+                        });
+                        nodeIds.add(rel.extends);
+                    }
+
+                    // Add nodes for traits (only show key ones to avoid clutter)
+                    if (rel.traits) {
+                        rel.traits.forEach(trait => {
+                            const traitName = trait.split('\\').pop();
+                            // Only show important Laravel traits
+                            if (['SoftDeletes', 'HasFactory', 'Notifiable'].includes(traitName)) {
+                                if (!nodeIds.has(trait)) {
+                                    nodes.push({
+                                        id: trait,
+                                        label: traitName,
+                                        title: trait,
+                                        color: '#e74c3c',
+                                        shape: 'triangle',
+                                        font: { size: 10 }
+                                    });
+                                    nodeIds.add(trait);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Create edges for relationships
+                Object.values(relationships).forEach(rel => {
+                    // Inheritance edges
+                    if (rel.extends) {
+                        edges.push({
+                            from: rel.name,
+                            to: rel.extends,
+                            label: 'extends',
+                            color: { color: '#ff9500' },
+                            arrows: 'to',
+                            width: 2
+                        });
+                    }
+
+                    // Dependency edges
+                    if (rel.dependencies) {
+                        rel.dependencies.forEach(dep => {
+                            edges.push({
+                                from: rel.name,
+                                to: dep.class,
+                                label: 'uses',
+                                color: { color: '#007bff' },
+                                arrows: 'to',
+                                dashes: true,
+                                width: 2
+                            });
+                        });
+                    }
+
+                    // Trait edges (only for the ones we included as nodes)
+                    if (rel.traits) {
+                        rel.traits.forEach(trait => {
+                            const traitName = trait.split('\\').pop();
+                            if (['SoftDeletes', 'HasFactory', 'Notifiable'].includes(traitName)) {
+                                edges.push({
+                                    from: rel.name,
+                                    to: trait,
+                                    label: 'uses',
+                                    color: { color: '#9b59b6' },
+                                    arrows: 'to',
+                                    dashes: [3, 3],
+                                    width: 1
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Create the network
+                const container = document.getElementById('network-container');
+                const data = { nodes: nodes, edges: edges };
+                const options = {
+                    physics: {
+                        enabled: false
+                    },
+                    layout: {
+                        hierarchical: {
+                            enabled: true,
+                            direction: 'UD',
+                            sortMethod: 'directed',
+                            nodeSpacing: 150,
+                            levelSeparation: 100
+                        }
+                    },
+                    nodes: {
+                        borderWidth: 2,
+                        size: 20,
+                        font: { size: 12, face: 'Arial' }
+                    },
+                    edges: {
+                        width: 2,
+                        font: { size: 10 }
+                    }
+                };
+
+                new vis.Network(container, data, options);
+            }
         
         function displayJson(data) {
             const contentArea = document.getElementById('content-area');

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use DaveKoala\RoutesExplorer\Explorer\ClassAnalysisEngine;
+use DaveKoala\RoutesExplorer\Explorer\StringHelpers;
 use Illuminate\Console\Command;
 
 class RoutesExplorerController extends Controller
@@ -38,7 +39,10 @@ class RoutesExplorerController extends Controller
     public function getRoute(Request $request)
     {
         try {
-            $verb = $request->get('verb');
+            $verbString = $request->get('verb'); // Can be 'GET|HEAD' or even things like 'PUT|PATCH', so we split it and return the first
+            $strHelper = new StringHelpers();
+            $verb = $strHelper->getVerb($verbString);
+
             $routeUri = $request->get('route');
             
             // Simple route finding - just match by URI and method

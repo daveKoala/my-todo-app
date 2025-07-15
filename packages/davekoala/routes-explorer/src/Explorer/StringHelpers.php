@@ -50,4 +50,11 @@ class StringHelpers
         
         return $word; // Return as-is if no rule matches
     }
+
+    public function getVerb(string $word): string 
+    {
+        $wordArray = explode('|', $word);
+
+        return $wordArray[0];
+    }
 }
