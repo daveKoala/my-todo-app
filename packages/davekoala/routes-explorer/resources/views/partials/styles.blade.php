@@ -104,15 +104,15 @@
             /* background-color: blue; */
             max-height: 100vh;
             overflow-y: auto;
-            padding: 0.5em;
-            margin: 0.5em;
+            padding: 0 0.5em;
+            margin: 0 0.5em;
         }
 
         .right-column {
             /* background-color: green; */
             padding: 20px;
-            padding: 0.5em;
-            margin: 0.5em;
+            padding: 0 0.5em;
+            margin: 0 0.5em;
         }
 
 

@@ -62,7 +62,7 @@ class RoutesExplorerController extends Controller
             }
             
             // Use your ClassAnalysisEngine to analyze the route
-            $analysisEngine = new ClassAnalysisEngine(3);
+            $analysisEngine = new ClassAnalysisEngine(5);
             
             // Simple mock command
             $mockCommand = new class extends Command {
