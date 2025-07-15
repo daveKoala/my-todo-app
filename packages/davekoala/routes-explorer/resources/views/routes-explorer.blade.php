@@ -67,9 +67,13 @@
         
         function displayResults(data) {
             const rightColumn = document.querySelector('.right-column');
+
+            const { methods, uri } = data.route;
+
+            const title = `${methods.join('|') || ''} ${uri || ''}`;
             
             rightColumn.innerHTML = `
-                <h3>Route Analysis Results</h3>
+                <h3>Route Analysis Results:${ title }</h3>
                 <div class="view-toggle">
                     <button onclick="switchView('network')" class="${currentView === 'network' ? 'active' : ''}">Network</button>
                     <button onclick="switchView('json')" class="${currentView === 'json' ? 'active' : ''}">JSON</button>
