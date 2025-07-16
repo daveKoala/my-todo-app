@@ -19,11 +19,11 @@ class TypeDetectors
     public function isEloquentModel(string $className): bool
     {
         if (!class_exists($className)) return false;
-        
+
         $reflection = new ReflectionClass($className);
         return $reflection->isSubclassOf('Illuminate\Database\Eloquent\Model');
     }
-    
+
     /**
      * Check if a class is an Eloquent Relationship
      * 
@@ -41,16 +41,16 @@ class TypeDetectors
             'Illuminate\Database\Eloquent\Relations\MorphMany',
             'Illuminate\Database\Eloquent\Relations\MorphTo',
         ];
-        
+
         foreach ($relationTypes as $relationType) {
             if ($className === $relationType || is_subclass_of($className, $relationType)) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     /**
      * Determine if we should skip exploring a framework class
      * 
@@ -66,16 +66,16 @@ class TypeDetectors
             'Carbon\\',
             'Monolog\\',
         ];
-        
+
         foreach ($frameworkPrefixes as $prefix) {
             if (str_starts_with($className, $prefix)) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     /**
      * Get an emoji icon for a class based on its type
      * 
@@ -91,7 +91,7 @@ class TypeDetectors
         if ($reflection->isAbstract()) return '🔺';
         return '📦';
     }
-    
+
     /**
      * Get a human-readable type description for a class
      */
@@ -102,11 +102,16 @@ class TypeDetectors
         if ($this->isEloquentModel($reflection->getName())) return 'Eloquent Model';
         if (str_contains($reflection->getName(), 'Controller')) return 'Controller';
         if (str_contains($reflection->getName(), 'Service')) return 'Service';
+        if (str_contains($reflection->getName(), 'Middleware')) return 'Middleware';
+        if (str_contains($reflection->getName(), 'Event')) return 'Event';
+        if (str_contains($reflection->getName(), 'Job')) return 'Job';
+        if (str_contains($reflection->getName(), 'Notification')) return 'Notification';
         if ($reflection->isAbstract()) return 'Abstract Class';
         if ($reflection->isFinal()) return 'Final Class';
+
         return 'Class';
     }
-    
+
     /**
      * Get emoji for a class type (from string rather than ReflectionClass)
      * 
@@ -114,13 +119,17 @@ class TypeDetectors
      */
     public function getClassEmojiFromType(string $type): string
     {
-        return match($type) {
+        return match ($type) {
             'Controller' => '🎮',
             'Eloquent Model' => '🗄️',
             'Service' => '⚙️',
             'Interface' => '🔌',
             'Trait' => '🧩',
             'Abstract Class' => '🔺',
+            'Middleware' => '🛡️',
+            'Event' => '📢',
+            'Job' => '⚡',
+            'Notification' => '📬',
             default => '📦'
         };
     }

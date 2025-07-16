@@ -170,11 +170,30 @@
                     // Dependency edges
                     if (rel.dependencies) {
                         rel.dependencies.forEach(dep => {
+                            // Choose edge style based on dependency usage type
+                            let edgeColor = '#007bff';  // default
+                            let edgeLabel = 'uses';
+
+                            // Customize based on the usage type from your patterns
+                            if (dep.context && dep.context.includes('event_dispatch')) {
+                                edgeColor = '#e83e8c';
+                                edgeLabel = 'dispatches';
+                            } else if (dep.context && dep.context.includes('job_dispatch')) {
+                                edgeColor = '#6610f2';
+                                edgeLabel = 'queues';
+                            } else if (dep.context && dep.context.includes('notification')) {
+                                edgeColor = '#20c997';
+                                edgeLabel = 'notifies';
+                            } else if (dep.context && dep.context.includes('Middleware')) {
+                                edgeColor = '#17a2b8';
+                                edgeLabel = 'middleware';
+                            }
+
                             edges.push({
                                 from: rel.name,
                                 to: dep.class,
-                                label: 'uses',
-                                color: { color: '#007bff' },
+                                label: edgeLabel,
+                                color: { color: edgeColor },
                                 arrows: 'to',
                                 dashes: true,
                                 width: 2
@@ -237,30 +256,38 @@
         }
         
         function getColorForType(type) {
-            const colors = {
-                'Controller': '#007bff',
-                'Eloquent Model': '#28a745',
-                'Service': '#ffc107',
-                'Interface': '#6c757d',
-                'Trait': '#dc3545',
-                'Abstract Class': '#fd7e14',
-                'Class': '#6f42c1'
-            };
-            return colors[type] || '#6c757d';
-        }
+                const colors = {
+                    'Controller': '#007bff',
+                    'Eloquent Model': '#28a745',
+                    'Service': '#ffc107',
+                    'Interface': '#6c757d',
+                    'Trait': '#dc3545',
+                    'Abstract Class': '#fd7e14',
+                    'Middleware': '#17a2b8',     // Add these new types
+                    'Event': '#e83e8c',
+                    'Job': '#6610f2',
+                    'Notification': '#20c997',
+                    'Class': '#6f42c1'
+                };
+                return colors[type] || '#6c757d';
+            }
         
         function getShapeForType(type) {
-            const shapes = {
-                'Controller': 'box',
-                'Eloquent Model': 'database',
-                'Service': 'diamond',
-                'Interface': 'ellipse',
-                'Trait': 'triangle',
-                'Abstract Class': 'star',
-                'Class': 'dot'
-            };
-            return shapes[type] || 'dot';
-        }
+                const shapes = {
+                    'Controller': 'box',
+                    'Eloquent Model': 'database',
+                    'Service': 'diamond',
+                    'Interface': 'ellipse',
+                    'Trait': 'triangle',
+                    'Abstract Class': 'star',
+                    'Middleware': 'hexagon',      // Add these new types
+                    'Event': 'dot',
+                    'Job': 'square',
+                    'Notification': 'triangleDown',
+                    'Class': 'dot'
+                };
+                return shapes[type] || 'dot';
+            }
     </script>
 </body>
 </html>
