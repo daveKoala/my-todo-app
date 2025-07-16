@@ -1,0 +1,17 @@
+{
+    "name": "davekoala/laravel_archaeologist",
+    "Description": "Developer tool for exploring Laravel routes and their dependencies — visualize controllers, traits, middleware, and models with interactive graphs.",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Davekoala\\LaravelArchaeologist\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "dave clare"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}

@@ -1,0 +1,17 @@
+{
+    "name": "davekoala/routes-explorer",
+    "autoload": {
+        "psr-4": {
+            "DaveKoala\\RoutesExplorer\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "DaveKoala\\RoutesExplorer\\RoutesExplorerServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
