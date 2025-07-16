@@ -17,10 +17,10 @@ use ReflectionClass;
  */
 class ClassAnalysisEngine
 {
-    private array $analyzed = [];
-    private array $relationships = [];
-    private int $maxDepth;
     private TypeDetectors $typeDetectors;
+    private array $relationships = [];
+    private array $analyzed = [];
+    private int $maxDepth;
 
     public function __construct(int $maxDepth = 3)
     {
@@ -358,7 +358,7 @@ class ClassAnalysisEngine
 
             // Resolve middleware class from alias if needed
             $middlewareClass = $this->resolveMiddlewareClass($mw);
-            if ($middlewareClass && class_exists($middlewareClass)) {
+            if ($middlewareClass) {  // Remove redundant class_exists() check
                 $command->line("{$indent}  ├─ {$mw} → {$middlewareClass}");
 
                 // Explore the middleware class
@@ -376,7 +376,7 @@ class ClassAnalysisEngine
      */
     private function resolveMiddlewareClass(string $middleware): ?string
     {
-        // Handle class::method format
+        // Handle class::method format (e.g., 'throttle:60,1')
         if (str_contains($middleware, ':')) {
             [$middleware] = explode(':', $middleware);
         }
@@ -387,24 +387,45 @@ class ClassAnalysisEngine
         }
 
         // Try to resolve from app's Http/Kernel
-        $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
+        try {
+            $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
 
-        // Check route middleware
-        $routeMiddleware = $kernel->getRouteMiddleware();
-        if (isset($routeMiddleware[$middleware])) {
-            return $routeMiddleware[$middleware];
+            // Use reflection to access the protected property
+            $reflection = new ReflectionClass($kernel);
+
+            // Try different property names based on Laravel version
+            if ($reflection->hasProperty('routeMiddleware')) {
+                $property = $reflection->getProperty('routeMiddleware');
+                $property->setAccessible(true);
+                $routeMiddleware = $property->getValue($kernel);
+            } elseif ($reflection->hasProperty('middlewareAliases')) {
+                // Laravel 10+ uses middlewareAliases
+                $property = $reflection->getProperty('middlewareAliases');
+                $property->setAccessible(true);
+                $routeMiddleware = $property->getValue($kernel);
+            } else {
+                return null;
+            }
+
+            if (isset($routeMiddleware[$middleware])) {
+                return $routeMiddleware[$middleware];
+            }
+        } catch (\Exception $e) {
+            // If anything fails, just return null
+            return null;
         }
 
         return null;
     }
 
     /**
-     * Get the actual configured user model for auth
+     * Get the actual configured user model for auth.
      */
-    private function getAuthUserModel(string $guard = null): ?string
+    private function getAuthUserModel(?string $guard = null): ?string
     {
         try {
             // Get the guard configuration
+            // Use default guard if none specified
             $guardName = $guard ?: config('auth.defaults.guard', 'web');
             $guardConfig = config("auth.guards.{$guardName}");
 
@@ -458,15 +479,15 @@ class ClassAnalysisEngine
 
         // Store relationship data
         $this->relationships[$className] = [
-            'name' => $className,
-            'type' => $this->typeDetectors->getClassType($reflection),
-            'context' => $context,
-            'depth' => $depth,
-            'file' => $reflection->getFileName(),
             'extends' => ($parent = $reflection->getParentClass()) ? $parent->getName() : null,
+            'type' => $this->typeDetectors->getClassType($reflection),
             'implements' => array_keys($reflection->getInterfaces()),
             'traits' => array_keys($reflection->getTraits()),
-            'dependencies' => []
+            'file' => $reflection->getFileName(),
+            'context' => $context,
+            'name' => $className,
+            'dependencies' => [],
+            'depth' => $depth,
         ];
 
         // Explore relationships
