@@ -7,6 +7,13 @@ use Illuminate\Routing\Route;
 use ReflectionMethod;
 use ReflectionClass;
 
+use DaveKoala\RoutesExplorer\Explorer\Patterns\SimpleModelReferences;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\ExplicitModelStatic;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\NotificationSending;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\JobDispatching;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\EventDispatch;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\NewClassName;
+
 /**
  * Enhanced Class Analysis Engine
  * 
@@ -147,6 +154,9 @@ class ClassAnalysisEngine
     {
         $dependencies = [];
 
+
+        // START Patterns
+
         // Pattern 1: Auth::user() calls - get actual configured user model
         if (preg_match_all('/Auth::user\(\)/', $source, $matches)) {
             $userModel = $this->getAuthUserModel();
@@ -173,55 +183,13 @@ class ClassAnalysisEngine
             }
         }
 
-        // Pattern 3: Explicit model static calls like User::first(), Customer::create()
-        if (preg_match_all('/\\\\?App\\\\Models\\\\(\w+)::/', $source, $matches)) {
-            foreach ($matches[1] as $model) {
-                $fullClass = "App\\Models\\{$model}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "App\\Models\\{$model}::",
-                        'usage' => 'static_call'
-                    ];
-                }
-            }
-        }
+        $dependencies = array_merge($dependencies, ExplicitModelStatic::detect($source));
+        $dependencies = array_merge($dependencies, SimpleModelReferences::detect($source));
+        $dependencies = array_merge($dependencies, NewClassName::detect($source));
+        $dependencies = array_merge($dependencies, EventDispatch::detect($source));
+        $dependencies = array_merge($dependencies, JobDispatching::detect($source));
+        $dependencies = array_merge($dependencies, NotificationSending::detect($source));
 
-        // Pattern 4: Simple model references - but verify they exist
-        if (preg_match_all('/(\w+)::(?:first|create|find|where|all|factory)\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleModel) {
-                // Skip known non-models
-                if (in_array($possibleModel, ['Auth', 'DB', 'Cache', 'Log', 'Mail', 'Queue'])) {
-                    continue;
-                }
-
-                // Only consider if it looks like a model (starts with capital)
-                if (ctype_upper($possibleModel[0])) {
-                    $fullClass = "App\\Models\\{$possibleModel}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleModel}::",
-                            'usage' => 'static_call'
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Pattern 5: new ClassName() instantiations
-        if (preg_match_all('/new\s+\\\\?(\w+(?:\\\\[\w]+)*)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $class) {
-                $fullClass = str_starts_with($class, 'App\\') ? $class : "App\\{$class}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "new {$class}()",
-                        'usage' => 'instantiation'
-                    ];
-                }
-            }
-        }
 
         // Pattern 6: $this->method() calls that might reference models
         if (preg_match_all('/\$this->(\w+)\(\)/', $source, $matches)) {
@@ -240,93 +208,6 @@ class ClassAnalysisEngine
             }
         }
 
-        // Pattern 7: Event dispatching
-        if (preg_match_all('/event\s*\(\s*new\s+(\w+)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $eventClass) {
-                $fullClass = "App\\Events\\{$eventClass}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "event(new {$eventClass}())",
-                        'usage' => 'event_dispatch'
-                    ];
-                }
-            }
-        }
-
-        // Pattern 8: Event::dispatch or EventName::dispatch
-        if (preg_match_all('/(\w+)::dispatch\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleEvent) {
-                if ($possibleEvent !== 'Event' && ctype_upper($possibleEvent[0])) {
-                    $fullClass = "App\\Events\\{$possibleEvent}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleEvent}::dispatch()",
-                            'usage' => 'event_dispatch'
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Pattern 9: Job dispatching
-        if (preg_match_all('/dispatch\s*\(\s*new\s+(\w+)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $jobClass) {
-                $fullClass = "App\\Jobs\\{$jobClass}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "dispatch(new {$jobClass}())",
-                        'usage' => 'job_dispatch'
-                    ];
-                }
-            }
-        }
-
-        // Pattern 10: Job::dispatch pattern
-        if (preg_match_all('/(\w+)::dispatch\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleJob) {
-                if (ctype_upper($possibleJob[0])) {
-                    $fullClass = "App\\Jobs\\{$possibleJob}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleJob}::dispatch()",
-                            'usage' => 'job_dispatch'
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Pattern 11: Notification sending
-        if (preg_match_all('/->notify\s*\(\s*new\s+(\w+)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $notificationClass) {
-                $fullClass = "App\\Notifications\\{$notificationClass}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "->notify(new {$notificationClass}())",
-                        'usage' => 'notification'
-                    ];
-                }
-            }
-        }
-
-        // Pattern 12: Notification::send
-        if (preg_match_all('/Notification::send\s*\([^,]+,\s*new\s+(\w+)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $notificationClass) {
-                $fullClass = "App\\Notifications\\{$notificationClass}";
-                if (class_exists($fullClass)) {
-                    $dependencies[] = [
-                        'class' => $fullClass,
-                        'pattern' => "Notification::send(..., new {$notificationClass}())",
-                        'usage' => 'notification'
-                    ];
-                }
-            }
-        }
 
         // Remove duplicates
         $unique = [];
