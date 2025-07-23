@@ -69,10 +69,35 @@ The package uses Laravel-native class resolution through the `ClassResolver` cla
 3. **Portable across Laravel setups** - Works with monorepos, custom folder structures, and Docker environments
 4. **No autoloader hacks** - Relies on Composer's PSR-4 autoloading and Laravel's class resolution
 
+## Security
+
+The package includes robust security measures to ensure it only runs in appropriate environments:
+
+### Environment Restrictions
+- **Default allowed environments**: `local`, `development`, `testing`
+- **Production protection**: Automatically disabled in `production` environment
+- **Debug mode requirement**: Requires `APP_DEBUG=true` by default
+- **Configurable**: Override settings in published config file
+
+### Security Implementation
+- **Middleware protection**: `RoutesExplorerSecurity` middleware guards all routes
+- **Engine-level validation**: `ClassAnalysisEngine` includes backup security checks
+- **Graceful denial**: Returns proper HTTP 403 responses with clear messaging
+- **Security headers**: Adds `X-Robots-Tag` and cache prevention headers
+
+### Configuration
+Customize security settings in `config/routes-explorer.php`:
+```php
+'security' => [
+    'allowed_environments' => ['local', 'development', 'testing'],
+    'require_debug' => true,
+],
+```
+
 ## Important Notes
 
-- The tool is intended for **development environments only**
-- Uses reflection and file system access to analyze code
+- The tool is intended for **development environments only** with built-in enforcement
+- Uses reflection and file system access to analyze code  
 - Includes depth limits (default: 3-5 levels) to prevent infinite recursion
 - Pattern matching uses `class_exists()` validation to prevent false positives
 - All dependency detection validates that classes actually exist before reporting them

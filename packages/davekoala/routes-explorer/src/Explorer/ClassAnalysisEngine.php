@@ -50,6 +50,9 @@ class ClassAnalysisEngine
      */
     public function exploreRoute(Route $route, Command $command): array
     {
+        // Security check - defense in depth
+        $this->validateSecurityRequirements();
+        
         $command->info('🔗 Exploring route chain...');
         $command->line('');
 
@@ -389,4 +392,29 @@ class ClassAnalysisEngine
         }
     }
 
+    /**
+     * Validate security requirements before performing analysis
+     * This is a backup security check in addition to middleware
+     */
+    private function validateSecurityRequirements(): void
+    {
+        $allowedEnvironments = config('routes-explorer.security.allowed_environments', ['local', 'development', 'testing']);
+        $requireDebug = config('routes-explorer.security.require_debug', true);
+        
+        // Check environment
+        $currentEnv = app()->environment();
+        if (!in_array($currentEnv, $allowedEnvironments)) {
+            throw new \RuntimeException(
+                "Routes Explorer analysis is disabled in '{$currentEnv}' environment. " .
+                "Only allowed in: " . implode(', ', $allowedEnvironments)
+            );
+        }
+        
+        // Check debug mode if required
+        if ($requireDebug && !config('app.debug')) {
+            throw new \RuntimeException(
+                'Routes Explorer analysis requires debug mode to be enabled for security reasons.'
+            );
+        }
+    }
 }
