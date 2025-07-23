@@ -2,42 +2,44 @@
 
 namespace DaveKoala\RoutesExplorer\Explorer\Patterns;
 
+use DaveKoala\RoutesExplorer\Explorer\RobustPatternMatcher;
+
 class AuthUsers
 {
     public static function detect(string $source): array
     {
         $dependencies = [];
 
-        // Pattern 1: Auth::user() calls - get actual configured user model
-        if (preg_match_all('/Auth::user\(\)/', $source, $matches)) {
+        // Use robust pattern matching for Auth::user() calls
+        $authUserMatches = RobustPatternMatcher::matchAuthUser($source);
+        foreach ($authUserMatches as $match) {
             $userModel = self::getAuthUserModel();
             if ($userModel) {
                 $dependencies[] = [
                     'class' => $userModel,
-                    'pattern' => 'Auth::user()',
+                    'pattern' => trim($match['full_match']),
                     'usage' => 'auth_user'
                 ];
             }
         }
 
-        // Pattern 2: Auth::guard('name')->user() calls - check specific guard
-        if (preg_match_all('/Auth::guard\([\'"]([^\'"]+)[\'"]\)->user\(\)/', $source, $matches)) {
-            foreach ($matches[1] as $guardName) {
-                $userModel = self::getAuthUserModel($guardName);
-                if ($userModel) {
-                    $dependencies[] = [
-                        'class' => $userModel,
-                        'pattern' => "Auth::guard('{$guardName}')->user()",
-                        'usage' => 'auth_guard_user'
-                    ];
-                }
+        // Use robust pattern matching for Auth::guard() calls
+        $authGuardMatches = RobustPatternMatcher::matchAuthGuard($source);
+        foreach ($authGuardMatches as $match) {
+            $guardName = $match['guard_name']; // May be null for variable guards
+            $userModel = self::getAuthUserModel($guardName);
+            if ($userModel) {
+                $dependencies[] = [
+                    'class' => $userModel,
+                    'pattern' => trim($match['full_match']),
+                    'usage' => 'auth_guard_user'
+                ];
             }
         }
 
-        // Pattern 6: $this->method() calls that might reference models
+        // Helper methods (kept simple as they're less critical)
         if (preg_match_all('/\$this->(\w+)\(\)/', $source, $matches)) {
             foreach ($matches[1] as $methodCall) {
-                // For getUser() type methods, try to determine what they return
                 if (str_contains(strtolower($methodCall), 'user')) {
                     $userModel = self::getAuthUserModel();
                     if ($userModel) {
@@ -51,7 +53,8 @@ class AuthUsers
             }
         }
 
-        return $dependencies;
+        // Remove duplicates based on class and pattern
+        return self::removeDuplicates($dependencies);
     }
 
     /**
@@ -89,5 +92,24 @@ class AuthUsers
             // If anything goes wrong, don't make assumptions
             return null;
         }
+    }
+
+    /**
+     * Remove duplicate dependencies
+     */
+    private static function removeDuplicates(array $dependencies): array
+    {
+        $unique = [];
+        $seen = [];
+
+        foreach ($dependencies as $dependency) {
+            $key = $dependency['class'] . '|' . $dependency['pattern'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $dependency;
+            }
+        }
+
+        return $unique;
     }
 }

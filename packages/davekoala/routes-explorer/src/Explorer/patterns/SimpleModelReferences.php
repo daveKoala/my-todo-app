@@ -2,6 +2,7 @@
 
 namespace DaveKoala\RoutesExplorer\Explorer\Patterns;
 
+use DaveKoala\RoutesExplorer\Explorer\RobustPatternMatcher;
 
 class SimpleModelReferences
 {
@@ -9,28 +10,72 @@ class SimpleModelReferences
     {
         $dependencies = [];
 
-        // Pattern 4: Simple model references - but verify they exist
-        if (preg_match_all('/(\w+)::(?:first|create|find|where|all|factory)\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleModel) {
-                // Skip known non-models
-                if (in_array($possibleModel, ['Auth', 'DB', 'Cache', 'Log', 'Mail', 'Queue'])) {
-                    continue;
-                }
+        // Use robust pattern matching for model static calls
+        $modelMatches = RobustPatternMatcher::matchModelStatic($source);
+        
+        foreach ($modelMatches as $match) {
+            $modelName = $match['class_name'];
+            
+            // Skip common non-model static calls
+            if (self::isFrameworkClass($modelName)) {
+                continue;
+            }
 
-                // Only consider if it looks like a model (starts with capital)
-                if (ctype_upper($possibleModel[0])) {
-                    $fullClass = "App\\Models\\{$possibleModel}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleModel}::",
-                            'usage' => 'static_call'
-                        ];
-                    }
+            // Try different namespace possibilities
+            $possibleClasses = [
+                "App\\Models\\{$modelName}",
+                "App\\{$modelName}",
+                $modelName // In case it's already fully qualified
+            ];
+
+            foreach ($possibleClasses as $fullClass) {
+                if (class_exists($fullClass)) {
+                    $dependencies[] = [
+                        'class' => $fullClass,
+                        'pattern' => "{$modelName}::{$match['method_name']}",
+                        'usage' => 'model_static'
+                    ];
+                    break; // Found it, stop trying other namespaces
                 }
             }
         }
 
-        return $dependencies;
+        // Remove duplicates
+        return self::removeDuplicates($dependencies);
+    }
+
+    /**
+     * Check if a class name is likely a framework class
+     */
+    private static function isFrameworkClass(string $className): bool
+    {
+        $frameworkClasses = [
+            'Auth', 'DB', 'Cache', 'Log', 'Route', 'Config', 'View', 'Session', 
+            'Request', 'Response', 'Redirect', 'Hash', 'Str', 'Arr', 'Carbon', 
+            'Event', 'Gate', 'Mail', 'Storage', 'Validator', 'Schema', 'Artisan',
+            'Queue', 'Bus', 'Broadcast', 'Notification', 'Password', 'Cookie',
+            'Crypt', 'File', 'Http', 'Lang', 'URL', 'Blade'
+        ];
+
+        return in_array($className, $frameworkClasses);
+    }
+
+    /**
+     * Remove duplicate dependencies
+     */
+    private static function removeDuplicates(array $dependencies): array
+    {
+        $unique = [];
+        $seen = [];
+
+        foreach ($dependencies as $dependency) {
+            $key = $dependency['class'] . '|' . $dependency['pattern'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $dependency;
+            }
+        }
+
+        return $unique;
     }
 }

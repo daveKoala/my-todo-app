@@ -14,6 +14,7 @@ use DaveKoala\RoutesExplorer\Explorer\Patterns\JobDispatching;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\EventDispatch;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\NewClassName;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\AuthUsers;
+use DaveKoala\RoutesExplorer\Explorer\Patterns\ComprehensiveDependencies;
 use DaveKoala\RoutesExplorer\Explorer\ClassResolver;
 
 /**
@@ -165,6 +166,7 @@ class ClassAnalysisEngine
 
 
         // START Patterns
+        $dependencies = array_merge($dependencies, ComprehensiveDependencies::detect($source));
         $dependencies = array_merge($dependencies, AuthUsers::detect($source));
         $dependencies = array_merge($dependencies, ExplicitModelStatic::detect($source));
         $dependencies = array_merge($dependencies, SimpleModelReferences::detect($source));

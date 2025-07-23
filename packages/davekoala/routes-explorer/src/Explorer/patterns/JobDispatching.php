@@ -2,6 +2,7 @@
 
 namespace DaveKoala\RoutesExplorer\Explorer\Patterns;
 
+use DaveKoala\RoutesExplorer\Explorer\RobustPatternMatcher;
 
 class JobDispatching
 {
@@ -9,36 +10,51 @@ class JobDispatching
     {
         $dependencies = [];
 
-        // Pattern 9: Job dispatching
-        if (preg_match_all('/dispatch\s*\(\s*new\s+(\w+)\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $jobClass) {
-                $fullClass = "App\\Jobs\\{$jobClass}";
+        // Use robust pattern matching for job dispatching
+        $jobMatches = RobustPatternMatcher::matchJobDispatch($source);
+        
+        foreach ($jobMatches as $match) {
+            $jobClass = $match['class_name'];
+            
+            // Try different namespace possibilities
+            $possibleClasses = [
+                "App\\Jobs\\{$jobClass}",
+                "App\\{$jobClass}",
+                $jobClass // In case it's already fully qualified
+            ];
+
+            foreach ($possibleClasses as $fullClass) {
                 if (class_exists($fullClass)) {
                     $dependencies[] = [
                         'class' => $fullClass,
-                        'pattern' => "dispatch(new {$jobClass}())",
+                        'pattern' => trim($match['full_match']),
                         'usage' => 'job_dispatch'
                     ];
+                    break; // Found it, stop trying other namespaces
                 }
             }
         }
 
-        // Pattern 10: Job::dispatch pattern
-        if (preg_match_all('/(\w+)::dispatch\s*\(/', $source, $matches)) {
-            foreach ($matches[1] as $possibleJob) {
-                if (ctype_upper($possibleJob[0])) {
-                    $fullClass = "App\\Jobs\\{$possibleJob}";
-                    if (class_exists($fullClass)) {
-                        $dependencies[] = [
-                            'class' => $fullClass,
-                            'pattern' => "{$possibleJob}::dispatch()",
-                            'usage' => 'job_dispatch'
-                        ];
-                    }
-                }
+        // Remove duplicates
+        return self::removeDuplicates($dependencies);
+    }
+
+    /**
+     * Remove duplicate dependencies
+     */
+    private static function removeDuplicates(array $dependencies): array
+    {
+        $unique = [];
+        $seen = [];
+
+        foreach ($dependencies as $dependency) {
+            $key = $dependency['class'] . '|' . $dependency['pattern'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $dependency;
             }
         }
 
-        return $dependencies;
+        return $unique;
     }
 }
