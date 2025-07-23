@@ -10,8 +10,9 @@ This repository contains **DaveKoala Routes Explorer** - a Laravel package for a
 
 ### Core Components
 
-- **RoutesExplorerServiceProvider** (`src/RoutesExplorerServiceProvider.php`) - Laravel service provider that registers routes and views
+- **RoutesExplorerServiceProvider** (`src/RoutesExplorerServiceProvider.php`) - Laravel service provider that registers routes, views, and publishes configuration
 - **ClassAnalysisEngine** (`src/Explorer/ClassAnalysisEngine.php`) - Main analysis engine that explores Laravel routes and dependencies using reflection and pattern matching
+- **ClassResolver** (`src/Explorer/ClassResolver.php`) - Laravel-native class resolution without autoloader hacks, with configurable namespace support
 - **RoutesExplorerController** (`src/Http/Controllers/RoutesExplorerController.php`) - Web controller that provides route listing and detailed route analysis via AJAX
 - **Pattern Classes** (`src/Explorer/patterns/`) - Individual pattern detection classes for different Laravel constructs (Auth, Models, Jobs, Events, etc.)
 
@@ -42,22 +43,31 @@ This is a Laravel package, so standard Laravel development practices apply:
 ### Package Installation
 The package is designed to be installed as a local package in a Laravel application. It registers automatically via Laravel's package discovery.
 
+### Configuration Publishing
+To customize namespaces and analysis settings:
+```bash
+php artisan vendor:publish --provider="DaveKoala\RoutesExplorer\RoutesExplorerServiceProvider" --tag="config"
+```
+
 ### Accessing the Tool
 Once installed, access the routes explorer at: `http://127.0.0.1/dev/routes-explorer`
 
 ### Key Files to Understand
 - `composer.json` - Package configuration with PSR-4 autoloading
-- `src/RoutesExplorerServiceProvider.php` - Package registration
-- `src/Explorer/ClassAnalysisEngine.php` - Core analysis logic (450+ lines)
+- `config/routes-explorer.php` - Configuration for namespaces, analysis depth, and security settings
+- `src/RoutesExplorerServiceProvider.php` - Package registration and config publishing
+- `src/Explorer/ClassAnalysisEngine.php` - Core analysis logic
+- `src/Explorer/ClassResolver.php` - Laravel-native class resolution with configurable namespaces
 - `src/Http/Controllers/RoutesExplorerController.php` - Web interface controller
 
-## Autoloader Considerations
+## Class Resolution Architecture
 
-The package includes special autoloader handling to ensure it can access application classes from within the package context. Both `ClassAnalysisEngine.php` and `RoutesExplorerController.php` include `ensureAutoloaderAccess()` methods that:
+The package uses Laravel-native class resolution through the `ClassResolver` class:
 
-1. Load the application's composer autoloader
-2. Register custom autoloader for App\ namespace classes  
-3. Pre-load common Laravel classes that often cause issues
+1. **Configuration-driven namespaces** - Supports custom namespaces beyond `App\`
+2. **Laravel autoloader integration** - Uses `ReflectionClass` instead of manual file loading
+3. **Portable across Laravel setups** - Works with monorepos, custom folder structures, and Docker environments
+4. **No autoloader hacks** - Relies on Composer's PSR-4 autoloading and Laravel's class resolution
 
 ## Important Notes
 

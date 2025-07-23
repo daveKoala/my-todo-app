@@ -18,10 +18,12 @@ class TypeDetectors
      */
     public function isEloquentModel(string $className): bool
     {
-        if (!class_exists($className)) return false;
-
-        $reflection = new ReflectionClass($className);
-        return $reflection->isSubclassOf('Illuminate\Database\Eloquent\Model');
+        try {
+            $reflection = new ReflectionClass($className);
+            return $reflection->isSubclassOf('Illuminate\Database\Eloquent\Model');
+        } catch (\ReflectionException $e) {
+            return false;
+        }
     }
 
     /**

@@ -3,6 +3,29 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Application Namespaces
+    |--------------------------------------------------------------------------
+    |
+    | Configure the base namespaces for your Laravel application.
+    | The package will use these to resolve and analyze classes.
+    |
+    */
+    'namespaces' => [
+        'app' => 'App\\',
+        'models' => 'App\\Models\\',
+        'controllers' => 'App\\Http\\Controllers\\',
+        'middleware' => 'App\\Http\\Middleware\\',
+        'jobs' => 'App\\Jobs\\',
+        'events' => 'App\\Events\\',
+        'notifications' => 'App\\Notifications\\',
+        'listeners' => 'App\\Listeners\\',
+        'policies' => 'App\\Policies\\',
+        'rules' => 'App\\Rules\\',
+        'providers' => 'App\\Providers\\',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Skip Namespaces
     |--------------------------------------------------------------------------
     |
@@ -16,6 +39,7 @@ return [
         'Psr\\',
         'Carbon\\',
         'Monolog\\',
+        'Laravel\\',
     ],
 
     /*
@@ -46,5 +70,21 @@ return [
         'jobs' => true,           // dispatch(), Job::dispatch()
         'notifications' => true,  // notify(), Notification::send()
         'views' => true,          // view(), View::make()
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Security
+    |--------------------------------------------------------------------------
+    |
+    | Safety settings to ensure this tool only runs in appropriate environments.
+    |
+    */
+    'security' => [
+        // Only allow in these environments
+        'allowed_environments' => ['local', 'development', 'testing'],
+        
+        // Require debug mode to be enabled
+        'require_debug' => true,
     ],
 ];

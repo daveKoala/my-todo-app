@@ -23,5 +23,13 @@ class RoutesExplorerServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../resources/views' => resource_path('views/vendor/routes-explorer'),
         ], 'views');
+        
+        // Publish configuration
+        $this->publishes([
+            __DIR__.'/../config/routes-explorer.php' => config_path('routes-explorer.php'),
+        ], 'config');
+        
+        // Merge default configuration
+        $this->mergeConfigFrom(__DIR__.'/../config/routes-explorer.php', 'routes-explorer');
     }
 }

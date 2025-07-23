@@ -14,6 +14,7 @@ use DaveKoala\RoutesExplorer\Explorer\Patterns\JobDispatching;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\EventDispatch;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\NewClassName;
 use DaveKoala\RoutesExplorer\Explorer\Patterns\AuthUsers;
+use DaveKoala\RoutesExplorer\Explorer\ClassResolver;
 
 /**
  * Enhanced Class Analysis Engine
@@ -26,17 +27,22 @@ use DaveKoala\RoutesExplorer\Explorer\Patterns\AuthUsers;
 class ClassAnalysisEngine
 {
     private TypeDetectors $typeDetectors;
+    private ClassResolver $classResolver;
     private array $relationships = [];
     private array $analyzed = [];
     private int $maxDepth;
 
-    public function __construct(int $maxDepth = 3)
+    public function __construct(int $maxDepth = null)
     {
-        $this->maxDepth = $maxDepth;
-        $this->typeDetectors = new TypeDetectors();
-
-        // CRITICAL: Ensure autoloader access when engine is created
-        $this->ensureAutoloaderAccess();
+        $this->maxDepth = $maxDepth ?? config('routes-explorer.max_depth', 3);
+        
+        try {
+            $this->typeDetectors = new TypeDetectors();
+            $this->classResolver = new ClassResolver();
+        } catch (\Exception $e) {
+            // Fallback in case of initialization issues
+            throw new \RuntimeException("Failed to initialize ClassAnalysisEngine: " . $e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -78,9 +84,8 @@ class ClassAnalysisEngine
      */
     private function exploreMethodEnhanced(string $className, string $methodName, int $depth, Command $command): void
     {
-        if (!class_exists($className)) return;
-
-        $reflection = new ReflectionClass($className);
+        $reflection = $this->classResolver->getReflection($className);
+        if (!$reflection) return;
 
         if (!$reflection->hasMethod($methodName)) {
             $command->line(str_repeat('  ', $depth) . "❌ Method {$methodName} not found in {$className}");
@@ -137,7 +142,7 @@ class ClassAnalysisEngine
             ];
 
             // Recursively explore if it's an app class
-            if (!$this->typeDetectors->shouldSkipFrameworkClass($dependency['class'])) {
+            if (!$this->classResolver->shouldSkipClass($dependency['class'])) {
                 $this->exploreClass($dependency['class'], $depth + 1, 'Runtime Dependency', $command);
 
                 // If it's an Eloquent Model, explore relationships
@@ -202,7 +207,7 @@ class ClassAnalysisEngine
                 $command->line("{$indent}  ├─ {$mw} → {$middlewareClass}");
 
                 // Explore the middleware class
-                if (!$this->typeDetectors->shouldSkipFrameworkClass($middlewareClass)) {
+                if (!$this->classResolver->shouldSkipClass($middlewareClass)) {
                     $this->exploreClass($middlewareClass, $depth + 2, 'Middleware', $command);
                 }
             } else {
@@ -222,7 +227,7 @@ class ClassAnalysisEngine
         }
 
         // If it's already a class name
-        if (class_exists($middleware)) {
+        if ($this->classResolver->classExists($middleware)) {
             return $middleware;
         }
 
@@ -272,12 +277,11 @@ class ClassAnalysisEngine
 
         $this->analyzed[$className] = true;
 
-        if (!class_exists($className)) {
+        $reflection = $this->classResolver->getReflection($className);
+        if (!$reflection) {
             $command->line(str_repeat('  ', $depth) . "❌ {$className} not found");
             return;
         }
-
-        $reflection = new ReflectionClass($className);
         $indent = str_repeat('  ', $depth);
 
         $command->line("{$indent}📦 {$this->typeDetectors->getClassEmoji($reflection)} {$className} {$context}");
@@ -328,7 +332,7 @@ class ClassAnalysisEngine
 
             $typeName = $type->getName();
 
-            if ($this->typeDetectors->shouldSkipFrameworkClass($typeName)) {
+            if ($this->classResolver->shouldSkipClass($typeName)) {
                 $command->line("{$indent}📋 {$param->getName()}: {$typeName} (Framework)");
                 continue;
             }
@@ -355,9 +359,8 @@ class ClassAnalysisEngine
 
     private function exploreModelRelationships(string $modelClass, int $depth, Command $command): void
     {
-        if (!class_exists($modelClass)) return;
-
-        $reflection = new ReflectionClass($modelClass);
+        $reflection = $this->classResolver->getReflection($modelClass);
+        if (!$reflection) return;
         $indent = str_repeat('  ', $depth);
 
         $command->line("{$indent}🗄️  Exploring Model relationships...");
@@ -379,71 +382,11 @@ class ClassAnalysisEngine
 
                 $stringHelper = new StringHelpers();
                 $relatedModel = $stringHelper->guessRelatedModel($method->getName());
-                if ($relatedModel && class_exists($relatedModel)) {
+                if ($relatedModel && $this->classResolver->classExists($relatedModel)) {
                     $this->exploreClass($relatedModel, $depth + 1, "Related Model ({$relationType})", $command);
                 }
             }
         }
     }
 
-    /**
-     * AUTOLOADER FIX: Ensure the package has access to the main application's autoloader
-     */
-    private function ensureAutoloaderAccess(): void
-    {
-        // Method 1: Explicitly load the app's composer autoloader
-        $appAutoloader = base_path('vendor/autoload.php');
-        if (file_exists($appAutoloader)) {
-            require_once $appAutoloader;
-        }
-
-        // Method 2: Register the App namespace explicitly
-        $appPath = app_path();
-        if (function_exists('spl_autoload_register')) {
-            spl_autoload_register(function ($class) use ($appPath) {
-                // Only handle App\ namespace classes
-                if (strpos($class, 'App\\') === 0) {
-                    $relativePath = str_replace('App\\', '', $class);
-                    $file = $appPath . '/' . str_replace('\\', '/', $relativePath) . '.php';
-
-                    if (file_exists($file)) {
-                        require_once $file;
-                        return true;
-                    }
-                }
-                return false;
-            });
-        }
-
-        // Method 3: Pre-load common Laravel classes that often cause issues
-        $commonClasses = [
-            'App\\Http\\Controllers\\Controller',
-            'App\\Models\\User',
-        ];
-
-        foreach ($commonClasses as $class) {
-            if (!class_exists($class, false)) { // Check if already loaded
-                $file = $this->classToFile($class);
-                if ($file && file_exists($file)) {
-                    try {
-                        require_once $file;
-                    } catch (\Throwable $e) {
-                        // Ignore errors, just continue
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Convert class name to file path
-     */
-    private function classToFile(string $class): ?string
-    {
-        if (strpos($class, 'App\\') === 0) {
-            $relativePath = str_replace('App\\', '', $class);
-            return app_path() . '/' . str_replace('\\', '/', $relativePath) . '.php';
-        }
-        return null;
-    }
 }
